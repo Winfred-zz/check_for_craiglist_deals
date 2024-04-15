@@ -47,10 +47,9 @@ def to_thread(func: typing.Callable) -> typing.Coroutine:
     return wrapper
 
 # =============================================================================
-# This function checks for new deals on a craigslist page and
-# updates the known_deals file with the current prices
-# =============================================================================
 def check_for_new_deals(friendly_name, url, known_deals):
+    '''This function checks for new deals on a craigslist page and
+    updates the known_deals file with the current prices'''
     discord_messages = []
     known_deals_urls = [row['url'] for row in known_deals]
     while True:
@@ -107,13 +106,13 @@ def check_for_new_deals(friendly_name, url, known_deals):
                     discord_messages.append(discord_message)
     my_logger.info("no price drops found for " + friendly_name)
     return discord_messages
-    
-# =============================================================================
-# This function loads the deals to check from craigslist_deals_to_check.csv
-# and then checks for new deals and price drops
-# =============================================================================
+
 @to_thread
 def load_deal_data_and_start_checking():
+    '''
+    This function loads the deals to check from craigslist_deals_to_check.csv
+    and then checks for new deals and price drops
+    '''
     if datetime.datetime.now().hour > 12 or datetime.datetime.now().hour < 2:
         with open('configs/known_deals.csv', 'r') as f:
             known_deals = list(csv.DictReader(f, skipinitialspace=True))
@@ -257,9 +256,9 @@ class DiscordBot(commands.Bot):
         else:
             raise error
 
-
-load_dotenv()
-DISCORD_TOKEN = os.getenv('DISCORD_TOKEN')
-CHANNELID = int(os.getenv('CHANNELID'))
-bot = DiscordBot()
-bot.run(DISCORD_TOKEN)
+if __name__ == "__main__":
+    load_dotenv()
+    DISCORD_TOKEN = os.getenv('DISCORD_TOKEN')
+    CHANNELID = int(os.getenv('CHANNELID'))
+    bot = DiscordBot()
+    bot.run(DISCORD_TOKEN)
