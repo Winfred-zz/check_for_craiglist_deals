@@ -38,9 +38,12 @@ my_logger.info("starting up")
 
 intents = discord.Intents.default()
 
-# This is a helper function to run blocking functions in a separate thread to prevent the "Heartbeat blocked for more than 10 seconds" warning
-#  https://stackoverflow.com/questions/65881761/discord-gateway-warning-shard-id-none-heartbeat-blocked-for-more-than-10-second
+# =============================================================================
 def to_thread(func: typing.Callable) -> typing.Coroutine:
+    '''
+    This is a helper function to run blocking functions in a separate thread to prevent the "Heartbeat blocked for more than 10 seconds" warning
+    https://stackoverflow.com/questions/65881761/discord-gateway-warning-shard-id-none-heartbeat-blocked-for-more-than-10-second
+    '''
     @functools.wraps(func)
     async def wrapper(*args, **kwargs):
         return await asyncio.to_thread(func, *args, **kwargs)
@@ -48,8 +51,10 @@ def to_thread(func: typing.Callable) -> typing.Coroutine:
 
 # =============================================================================
 def check_for_new_deals(friendly_name, url, known_deals):
-    '''This function checks for new deals on a craigslist page and
-    updates the known_deals file with the current prices'''
+    '''
+    This function checks for new deals on a craigslist page and
+    updates the known_deals file with the current prices
+    '''
     discord_messages = []
     known_deals_urls = [row['url'] for row in known_deals]
     while True:
@@ -107,6 +112,7 @@ def check_for_new_deals(friendly_name, url, known_deals):
     my_logger.info("no price drops found for " + friendly_name)
     return discord_messages
 
+# =============================================================================
 @to_thread
 def load_deal_data_and_start_checking():
     '''
