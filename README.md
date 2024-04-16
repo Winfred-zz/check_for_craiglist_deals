@@ -23,3 +23,12 @@ To install the prerequisites, run:
 
     pip install -r requirements.txt
 
+This bot only notifies during certain hours, but this can't be configured currently (if there's interest, I might add that as a configurable option)
+
+Currently this is set in the code, function `load_deal_data_and_start_checking()`:
+
+     if datetime.datetime.now().hour > 12 or datetime.datetime.now().hour < 2
+
+You can always change the hours there to something you'd prefer.
+
+[For more details go here.](https://winfred.com/projects/check_for_craiglist_deals/)
