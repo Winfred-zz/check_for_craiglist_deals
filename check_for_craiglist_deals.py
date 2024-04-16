@@ -11,6 +11,8 @@ Best to make sure your url is one that's specific, like search only a specific a
 
 you can add a new deal to check by adding a new row to craigslist_deals_to_check.csv with the following columns:
 friendly_name (anything without commas),url (the craigslist url)
+
+For more information, check https://winfred.com/projects/check_for_craiglist_deals/
 '''
 import os
 import platform
@@ -80,13 +82,11 @@ def check_for_new_deals(friendly_name, url, known_deals):
             with open('configs/known_deals.csv', 'a', newline='') as f:
                 writer = csv.DictWriter(f, fieldnames=['title', 'original_price', 'current_price', 'url'],quotechar='"', quoting=csv.QUOTE_MINIMAL)
                 writer.writerow({'url': item_url, 'original_price': price, 'current_price': price, 'title': title})
-            # send message to discord:
             discord_message = "Found a new craigslist deal for " + friendly_name + ": " + item_url + " [all deals](" + url + ")"
-            #return discord_message # Only generate an alert for the first new deal found.
             discord_messages.append(discord_message)
     my_logger.info("no new deals found for " + friendly_name)
     
-    # so nothing new, let's check the prices of the known deals:
+    # Now check the prices of the known deals:
     for item in items:
         alink = item.find('a')
         item_url = alink['href']
@@ -107,7 +107,6 @@ def check_for_new_deals(friendly_name, url, known_deals):
                         writer.writeheader()
                         for known_deal in known_deals:
                             writer.writerow(known_deal)
-                    #return discord_message
                     discord_messages.append(discord_message)
     my_logger.info("no price drops found for " + friendly_name)
     return discord_messages
@@ -131,7 +130,6 @@ def load_deal_data_and_start_checking():
             for row in csv_reader:
                 # Append each row (as a dictionary) to the list
                 my_logger.info("check_for_new_deals for " + row['friendly_name'])
-                #discord_messages = check_for_new_deals(row['friendly_name'], row['url'], known_deals)
                 discord_messages.extend(check_for_new_deals(row['friendly_name'], row['url'], known_deals))
                 # wait a minute between checking each deal
                 time.sleep(60)   
