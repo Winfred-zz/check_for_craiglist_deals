@@ -59,13 +59,29 @@ def check_for_new_deals(friendly_name, url, known_deals):
     '''
     discord_messages = []
     known_deals_urls = [row['url'] for row in known_deals]
-    while True:
+    # This needs to be rewritten to include a retry loop:
+    #while True:
+    #    try:
+    #        page = requests.get(url, timeout=30)
+    #        break
+    #    except requests.exceptions.RequestException as e:
+    #        my_logger.error("Requests get Error: " + str(e))
+    #        return
+    retry_count = 5
+    while retry_count > 0:
         try:
             page = requests.get(url, timeout=30)
             break
         except requests.exceptions.RequestException as e:
             my_logger.error("Requests get Error: " + str(e))
-            return
+            retry_count -= 1
+            time.sleep(60)
+            if retry_count == 0:
+                my_logger.error("Failed to get page after 5 retries")
+                discord_message = "Failed to get page after 5 retries for " + friendly_name
+                discord_messages.append(discord_message)
+                return discord_messages
+
     soup = BeautifulSoup(page.content, "html.parser")
     items = soup.find_all('li', class_='cl-static-search-result')
     for item in items:
@@ -84,7 +100,6 @@ def check_for_new_deals(friendly_name, url, known_deals):
                 writer.writerow({'url': item_url, 'original_price': price, 'current_price': price, 'title': title})
             discord_message = "Found a new craigslist deal for " + friendly_name + ": " + item_url + " [all deals](" + url + ")"
             discord_messages.append(discord_message)
-    my_logger.info("no new deals found for " + friendly_name)
     
     # Now check the prices of the known deals:
     for item in items:
@@ -108,7 +123,6 @@ def check_for_new_deals(friendly_name, url, known_deals):
                         for known_deal in known_deals:
                             writer.writerow(known_deal)
                     discord_messages.append(discord_message)
-    my_logger.info("no price drops found for " + friendly_name)
     return discord_messages
 
 # =============================================================================
@@ -130,7 +144,10 @@ def load_deal_data_and_start_checking():
             for row in csv_reader:
                 # Append each row (as a dictionary) to the list
                 my_logger.info("check_for_new_deals for " + row['friendly_name'])
-                discord_messages.extend(check_for_new_deals(row['friendly_name'], row['url'], known_deals))
+                deal_results = check_for_new_deals(row['friendly_name'], row['url'], known_deals)
+                if deal_results:
+                    discord_messages.extend(deal_results)
+                #discord_messages.extend(check_for_new_deals(row['friendly_name'], row['url'], known_deals))
                 # wait a minute between checking each deal
                 time.sleep(60)   
         return discord_messages
