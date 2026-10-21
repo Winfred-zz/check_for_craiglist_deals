@@ -13,8 +13,11 @@ import threading
 from decimal import Decimal
 from pathlib import Path
 
-import parse
+import re
+import pytest
 import acquire
+import notify
+import parse
 from acquire import AcquirePermanent, AcquireTransient
 import http.server
 import requests
@@ -110,6 +113,27 @@ def test_fixture_scan_yields_only_valid_cards() -> None:
     assert second_rejected == []
 
 
+def test_live_shape_modern_links_parse_in_full_pipeline() -> None:
+    """live-modern.html: sanitized capture of a REAL 2026-10-21 Craigslist
+    search page (links rewritten to FIXEDID placeholders, no real searches).
+    The live page uses /view/d/<slug>/<opaque-id> links; the synthetic
+    numeric-.html fixtures alone cannot certify this format, so the real
+    layout is kept as a fixture and driven through layout_status + parser
+    + renderer offline."""
+    manifest = offline_manifest(FIX / "offline-scan")
+    html = (FIX / "offline-scan" / manifest[
+        "https://sfbay.craigslist.org/search/sss?query=live"
+    ]).read_text(encoding="utf-8")
+    assert acquire.layout_status(html) == "results"
+    items, rejected = parse.parse_search_html(html)
+    assert len(items) == 30
+    assert rejected == []
+    assert all(re.match(r"FIXEDID\d\dFIXEDID\Z", item["id"]) for item in items)
+    assert all(
+        notify.is_safe_listing_url(item["link"]) for item in items
+    )
+
+
 def test_layout_classes_are_distinct() -> None:
     denied = (FIX / "offline-failures" / "denied.html").read_text(encoding="utf-8")
     broken = (FIX / "offline-failures" / "broken.html").read_text(encoding="utf-8")
@@ -199,8 +223,10 @@ class _LoopbackHandler(BaseHTTPRequestHandler):
     """Answers from a queued outcome list so the retry path is exercised."""
 
     outcomes: list[tuple[int, str, dict[str, str]]] = []
+    hits: int = 0
 
     def do_GET(self) -> None:
+        _LoopbackHandler.hits += 1
         status, body, headers = self.outcomes.pop(0)  # type: ignore[attr-defined]
         payload = body.encode("utf-8")
         self.send_response(status)
@@ -236,3 +262,63 @@ def test_loopback_http_exercises_real_requests_path() -> None:
         server.shutdown()
         server.server_close()
         server_thread.join(timeout=5)
+
+
+def test_loopback_permanent_and_transient_exhaustion() -> None:
+    """Real-socket failure classes: 404 raises AcquirePermanent after ONE
+    attempt (no retry storm), 503 exhausts into AcquireTransient."""
+    cases: list[tuple[list[tuple[int, str, dict[str, str]]], type[Exception]]] = [
+        ([(404, "gone", {})], AcquirePermanent),
+        (
+            [(503, "down", {})] * 4,
+            AcquireTransient,
+        ),
+    ]
+    for outcomes, expected in cases:
+        _LoopbackHandler.outcomes = list(outcomes)
+        _LoopbackHandler.hits = 0
+        server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), _LoopbackHandler)
+        port = server.server_address[1]
+        thread = threading.Thread(target=server.serve_forever)
+        thread.start()
+        try:
+            slept: list[float] = []
+            with pytest.raises(expected) as raised:
+                acquire.fetch_search_page(
+                    requests.Session(),
+                    f"http://127.0.0.1:{port}/search",
+                    max_retries=3,
+                    timeout=5.0,
+                    sleep=lambda seconds: slept.append(seconds),
+                )
+            expected_attempts = 1 if expected is AcquirePermanent else 4
+            assert _LoopbackHandler.hits == expected_attempts
+            assert str(raised.value), "failure text is actionable"
+            if expected is AcquireTransient:
+                assert len(slept) == 3, "no sleep after the final failure"
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=5)
+
+
+def test_loopback_cancellation_stops_the_real_request() -> None:
+    """cancel_check=True: fetch raises before any socket hits the server."""
+    _LoopbackHandler.outcomes = [(200, "<html>ok</html>", {})]
+    _LoopbackHandler.hits = 0
+    server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), _LoopbackHandler)
+    port = server.server_address[1]
+    thread = threading.Thread(target=server.serve_forever)
+    thread.start()
+    try:
+        with pytest.raises(AcquireTransient, match="cancelled"):
+            acquire.fetch_search_page(
+                requests.Session(),
+                f"http://127.0.0.1:{port}/search",
+                cancel_check=lambda: True,
+            )
+        assert _LoopbackHandler.hits == 0, "cancellation precedes the socket"
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=5)

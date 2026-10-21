@@ -11,7 +11,7 @@ cannot rely on the sender's allowed_mentions), and exact cent display
 
 from urllib.parse import urlparse
 
-from parse import CL_HOST_RE
+from parse import CL_HOST_RE, MODERN_LISTING_RE
 from selection import EventRecord
 
 MARKDOWN_SPECIALS = str.maketrans(
@@ -41,11 +41,19 @@ TRIM_MARKER = ".."
 
 
 def is_safe_listing_url(url: str) -> bool:
-    """True for a validated https Craigslist listing URL (ends .html)."""
-    if not url.endswith(".html"):
+    """True for a validated https Craigslist listing URL.
+
+    Accepts the legacy ".../<id>.html" ending and the modern
+    "/view/d/<slug>/<opaque-id>" ending; both are validated with the
+    same patterns parse.py uses, so a renderable link can never point
+    outside Craigslist.
+    """
+    parsed = urlparse(url)
+    if parsed.scheme != "https" or not CL_HOST_RE.match(parsed.netloc):
         return False
-    match = CL_HOST_RE.match(urlparse(url).netloc)
-    return bool(match and urlparse(url).scheme == "https")
+    return bool(
+        url.endswith(".html") or MODERN_LISTING_RE.search(parsed.path)
+    )
 
 
 def is_safe_search_url(url: str) -> bool:

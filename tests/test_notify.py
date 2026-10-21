@@ -119,6 +119,22 @@ def test_listing_url_safety_policy() -> None:
     assert not is_safe_listing_url("https://sfbay.craigslist.org/d/x/no-id")
 
 
+MODERN_LISTING = (
+    "https://www.craigslist.org/view/d/concord-bike/g43yuBb7yCZpY9Lhb1oQ7o"
+)
+
+
+def test_modern_view_d_listing_url_is_safe() -> None:
+    assert is_safe_listing_url(MODERN_LISTING)
+    assert not is_safe_listing_url("https://www.craigslist.org/view/d/concord-bike")
+    assert not is_safe_listing_url(
+        "https://www.craigslist.org/view/x/concord-bike/g43yuBb7yCZpY9Lhb1oQ7o"
+    )
+    message = render_alert_message(
+        event("new", url=MODERN_LISTING, posting_id="g43yuBb7yCZpY9Lhb1oQ7o")
+    )
+    assert MODERN_LISTING in message
+
 def test_search_url_safety_policy() -> None:
     assert is_safe_search_url(SEARCH)
     assert not is_safe_search_url("http://sfbay.craigslist.org/search/sss")

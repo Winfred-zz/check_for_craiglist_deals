@@ -109,6 +109,52 @@ def test_id_length_bounds() -> None:
         assert reason == "malformed listing url"
 
 
+MODERN = "https://www.craigslist.org/view/d/concord-bike/g43yuBb7yCZpY9Lhb1oQ7o"
+
+
+def test_modern_view_d_link_parses_opaque_id() -> None:
+    # Live Craigslist (observed 2026-10-21) links cards as
+    # /view/d/<slug>/<opaque-id> with no numeric ".html" suffix; the old
+    # numeric-only pattern rejected EVERY live card.
+    posted_id, canonical, reason = parse.parse_listing_link(MODERN)
+    assert posted_id == "g43yuBb7yCZpY9Lhb1oQ7o"
+    assert canonical == MODERN
+    assert reason is None
+    _id, stripped, _reason = parse.parse_listing_link(MODERN + "?format=mini")
+    assert stripped == MODERN, "query strings never split one posting's identity"
+
+
+def test_modern_view_d_link_rejects_unsafe_targets() -> None:
+    cases: list[tuple[str, str]] = [
+        ("http://www.craigslist.org/view/d/x/g43yuBb7yCZpY9Lhb1oQ7o",
+         "link not https"),
+        ("https://evil.example.com/view/d/x/g43yuBb7yCZpY9Lhb1oQ7o",
+         "link not a craigslist host"),
+        ("https://www.craigslist.org/view/d/only-slug", "malformed listing url"),
+        ("https://www.craigslist.org/view/d/x/short", "malformed listing url"),
+        ("https://www.craigslist.org/view/d/x/has spaces1", "malformed listing url"),
+    ]
+    for href, reason in cases:
+        posted_id, canonical, observed = parse.parse_listing_link(href)
+        assert (posted_id, canonical) == (None, None)
+        assert observed == reason
+
+
+def test_modern_cards_parse_and_dedup_by_opaque_id() -> None:
+    html = _page(
+        _card(MODERN, "Live-shape card", "$225"),
+        _card(MODERN + "?x=1", "Dup", "$8"),
+        _card(ONE, "Legacy-shape card", "$19.99"),
+    )
+    items, rejected = parse.parse_search_html(html)
+    assert [(item["id"], item["price_usd"]) for item in items] == [
+        ("g43yuBb7yCZpY9Lhb1oQ7o", Decimal("225")),
+        ("5012345678", Decimal("19.99")),
+    ]
+    assert [(card["reason"], card["position"]) for card in rejected] == [
+        ("duplicate id", 1),
+    ]
+
 def test_cards_parse_independently() -> None:
     html = _page(
         _card(ONE, "Priced", "$19"),

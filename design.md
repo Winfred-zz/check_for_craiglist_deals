@@ -44,7 +44,7 @@ questions and to record adopted defaults; each row is the shipped behavior):
 |---|---|---|
 | Events | Alert for each newly discovered valid listing and each new historical-low price. Emit all eligible events per scan. | Preserves executable behavior over contradictory comments. |
 | Price increases | Record last observed price separately; compare decreases with the historical low. A rebound then return to an already-reported price does not alert. | Preserves existing low-watermark behavior. |
-| Identity | Global deduplication by numeric posting ID extracted from a validated Craigslist listing URL; retain canonical URL for display. | Replaces fragile exact-URL equality; different IDs/reposts remain new. |
+| Identity | Global deduplication by posting ID extracted from a validated Craigslist listing URL — legacy numeric `<9-12 digits>.html` or modern `/view/d/<slug>/<opaque-id>` (observed live 2026-10-21); retain canonical URL for display. | Replaces fragile exact-URL equality; different IDs/reposts remain new. |
 | Overlapping searches | First CSV row discovering an event supplies its search context; emit that event once. | Makes within-scan behavior deterministic. |
 | First run | Existing visible listings are new and eligible; no implicit silent baseline. | Preserves discovery behavior. |
 | Money | Exact USD cents, nonnegative. Reject missing, malformed, range, and unsupported-currency values rather than guessing; accept an explicitly displayed zero. Search URL defines filters. | Fixes stale/unbound values and integer truncation. No eBay ceiling or shipping rule. |
@@ -186,7 +186,8 @@ unexercised surface explicitly rather than copying eBay's verification claims.
   always handled; Shutdown unwinds scan+delivery loops into a bounded drain,
   then exit 0. Tests observe the lock file before signalling (startup race
   window is interpreter imports, not our lifecycle).
-- Event identity: posting id (9-12 digits from `/d/.../<id>.html`) + kind
+- Event identity: posting id (9-12 digits from legacy `/d/.../<id>.html`
+  or the modern `/view/d/<slug>/<id>` 9-40 char URL-safe opaque id) + kind
   (`new`/`price-drop`); event_key `{id}@new` / `{id}@{cents}`. Sent rows are
   keyed the same, so restarts never re-deliver.
 - At-least-once durable outbox: event applied to listings+pending atomically

@@ -8,9 +8,10 @@ parse_search_html() is the function under test with fixtures:
   Ranges ("$20 to $30"), other currencies, "free", and malformed values
   are rejected with a reason, never turned into a zero price.
   "$19.99" keeps its cents (the legacy int() conversion truncated them).
-- Listing identity: the numeric posting ID from a validated https
-  Craigslist listing URL; malformed links and duplicate IDs are handled
-  explicitly.
+- Listing identity: the posting ID from a validated https Craigslist
+  listing URL — legacy numeric `<id>.html` or the modern
+  `/view/d/<slug>/<opaque-id>` form; malformed links and duplicate IDs
+  are handled explicitly.
 - There is no condition/exclusion concept here: Craigslist search pages
   carry title/price/link only.
 """
@@ -26,6 +27,7 @@ CL_HOST_RE = re.compile(r"^(?:[a-z0-9-]+\.)?craigslist\.org$", re.IGNORECASE)
 USD_PRICE_RE = re.compile(r"\$(?P<amount>[0-9]+(?:,[0-9]{3})*(?:\.[0-9]{1,2})?)\Z")
 OTHER_CURRENCY_RE = re.compile(r"[€£¥₹]|USD\b|\beuros?\b", re.IGNORECASE)
 LISTING_ID_RE = re.compile(r"(?<![0-9])(?P<id>[0-9]{9,12})\.html\Z")
+MODERN_LISTING_RE = re.compile(r"/view/d/[^/]+/(?P<id>[A-Za-z0-9_-]{9,40})\Z")
 
 
 class ItemRecord(TypedDict):
@@ -63,9 +65,11 @@ def parse_usd_price(raw: str) -> tuple[Decimal | None, str | None]:
 def parse_listing_link(href: object) -> tuple[str | None, str | None, str | None]:
     """Return (posting_id, canonical_url, reason-if-invalid).
 
-    Only https Craigslist hosts with a trailing numeric posting ID and
-    ".html" ending are accepted; the canonical URL drops query strings so
-    the same posting reached through different query strings dedupes by ID.
+    Only https Craigslist hosts are accepted, in both listing forms: the
+    legacy ".../<9-12 digits>.html" and the modern "/view/d/<slug>/<id>"
+    with a 9-40 char URL-safe opaque id. The canonical URL drops query
+    strings so the same posting reached through different query strings
+    dedupes by ID.
     """
     if not isinstance(href, str) or not href:
         return None, None, "link missing"
@@ -80,7 +84,9 @@ def parse_listing_link(href: object) -> tuple[str | None, str | None, str | None
     path = remainder[len(host_only):]
     query_stripped = path.split("?")[0]
     id_match = LISTING_ID_RE.search(query_stripped)
-    if not id_match:
+    if id_match is None:
+        id_match = MODERN_LISTING_RE.search(query_stripped)
+    if id_match is None:
         return None, None, "malformed listing url"
     posting_id = id_match.group("id")
     canonical = f"https://{host_only}{query_stripped}"
