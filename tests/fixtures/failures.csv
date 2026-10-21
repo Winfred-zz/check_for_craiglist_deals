@@ -1,0 +1,3 @@
+friendly_name,url
+Denied search,https://sfbay.craigslist.org/search/sss?query=denied
+Broken search,https://sfbay.craigslist.org/search/sss?query=broken

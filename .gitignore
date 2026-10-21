@@ -126,3 +126,75 @@ notes/
 .vscode/
 
 copy_files_and_restart_bot.ps1
+
+# Shared project defaults (aligned with check_for_ebay_deals)
+# User configuration and durable runtime state
+/configs/*
+!/configs/.gitignore
+/data/
+log/
+runs/
+*.[lL][oO][gG]*
+
+# Tool caches and test reports
+.ruff_cache/
+node_modules/
+test-results.xml
+
+# Databases and SQLite sidecars (do not ignore dependency lockfiles)
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+*.db
+*.db-shm
+*.db-wal
+*.db.bak*
+*.sqlite-backup-*
+*.sqlite-scratch*
+
+# Temporary files
+temp/
+tmp/
+scratch*
+*.tmp
+
+# Secrets and credentials
+.env.*
+*.key
+*.pem
+id_rsa*
+*.pfx
+*.p12
+*.crt
+
+# Local agent instructions, handoffs, and editor settings
+/AGENTS.md
+/handoff/
+handoffs/
+.claude/
+.obsidian/
+.cursor/
+.idea/
+.vs/
+GEMINI.md
+
+# OS metadata
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+
+# Keep sanitized examples trackable outside ignored config directories
+!*.example.*
+!.example*
+!.env.example
+
+.venv-*/
+*.sqlite
+*.sqlite-*
+state.sqlite
+known_deals.csv.migrated-*.bak

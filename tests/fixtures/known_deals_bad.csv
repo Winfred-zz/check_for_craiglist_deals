@@ -1,0 +1,3 @@
+title,original_price,current_price,url
+Example one,19,19,https://sfbay.craigslist.org/sys/d/example-posting/5012345678.html
+Broken row,19,oops,https://sfbay.craigslist.org/sys/d/broken/5022222222.html

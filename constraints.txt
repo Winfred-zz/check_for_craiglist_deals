@@ -1,0 +1,11 @@
+# Lower bounds for the direct runtime/dev dependencies. These are the
+# minimum versions whose behavior this codebase was written against and
+# is expected to run on (installed + exercised 2026-10-20, Python 3.12.3).
+# Newer versions are allowed; anything below these was never verified.
+requests>=2.34.2
+beautifulsoup4>=4.15.0
+discord.py>=2.7.1
+colorlog>=6.12.0
+python-dotenv>=1.2.4
+pytest>=9.1.1
+ruff>=0.17.1

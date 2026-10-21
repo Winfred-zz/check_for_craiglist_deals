@@ -1,0 +1,14 @@
+name: ci
+
+branches:
+  - main
+  - modernize/full-implementation
+
+jobs:
+  consistency:
+    run: |
+      echo "=== interpreter" && python -c "import sys; print(sys.version)"
+      echo "=== pinned dependency tree"
+      python -m pip freeze
+      echo "=== consistency violations"
+      python -m pip check
