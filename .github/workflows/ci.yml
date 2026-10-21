@@ -1,14 +1,33 @@
 name: ci
 
-branches:
-  - main
-  - modernize/full-implementation
+on:
+  push:
+    branches:
+      - main
+      - modernize/full-implementation
 
 jobs:
-  consistency:
-    run: |
-      echo "=== interpreter" && python -c "import sys; print(sys.version)"
-      echo "=== pinned dependency tree"
-      python -m pip freeze
-      echo "=== consistency violations"
-      python -m pip check
+  verify:
+    timeout-minutes: 10
+    steps:
+      - run: |
+          echo "=== interpreter"
+          python3 -c "import sys; print(sys.version)"
+          python3 -m venv .venv
+          .venv/bin/python -m pip install -q --upgrade pip
+          .venv/bin/pip install -q -r requirements-dev.txt -c constraints.txt
+          echo "=== pip check (declared vs resolved)"
+          .venv/bin/pip check
+          echo "=== freeze (observed versions vs constraints)"
+          .venv/bin/pip freeze
+          echo "=== ruff"
+          .venv/bin/ruff check .
+          echo "=== pytest (hermetic suite)"
+          .venv/bin/python -m pytest -q tests
+      - run: |
+          echo "=== cli smoke (fixture scan, network-blocked)"
+          .venv/bin/python check_for_craiglist_deals.py --once \
+            --csv examples/craigslist_deals_to_check.csv \
+            --fixture-dir tests/fixtures/offline-scan \
+            --data-dir "$PWD/data" --log-dir "$PWD/logs" --dry-run \
+            --at "2026-10-19T13:00:00Z"
