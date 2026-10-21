@@ -1,0 +1,9 @@
+# Legacy known-deals state example (header only).
+#
+# The migrated SQLite state (`<data-dir>/state.sqlite`) replaces this CSV at
+# runtime. This file shows the exact legacy header shape that `state.py`
+# migrates from `<data-dir>/known_deals.csv`; rows are sanitized examples.
+title,original_price,current_price,url
+Example one,100,50,https://sfbay.craigslist.org/d/bikes/5012345678.html
+posting,10,20,https://sfbay.craigslist.org/d/bikes/5000000000.html
+renamer,100,100,https://vancouver.craigslist.org/d/bikes/5099999999.html
